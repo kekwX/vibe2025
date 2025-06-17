@@ -1,0 +1,1 @@
+great! well now i need to implement deleting items from the list without editing.
