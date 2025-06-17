@@ -55,7 +55,7 @@
         </tr>
     </thead>
     <tbody id="listBody">
-        {{rows}}
+        <!-- List rows will be rendered here -->
     </tbody>
 </table>
 
@@ -65,39 +65,42 @@
 </div>
 
 <script>
-    let items = [];
-    let nextId = 1;
+    async function fetchList() {
+        const res = await fetch('/api/items');
+        const items = await res.json();
+        renderList(items);
+    }
 
-    function renderList() {
+    function renderList(items) {
         const listBody = document.getElementById('listBody');
         listBody.innerHTML = '';
-
         items.forEach((item, index) => {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${index + 1}</td>
                 <td>${item.text}</td>
-                <td><button onclick="removeItem(${index})">Remove</button></td>
+                <td></td>
             `;
             listBody.appendChild(row);
         });
     }
 
-    function addItem() {
+    async function addItem() {
         const newItemInput = document.getElementById('newItem');
         const newItemText = newItemInput.value.trim();
 
         if (newItemText) {
-            items.push({ id: nextId++, text: newItemText });
+            await fetch('/api/items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: newItemText })
+            });
             newItemInput.value = '';
-            renderList();
+            fetchList();
         }
     }
 
-    function removeItem(index) {
-        items.splice(index, 1);
-        renderList();
-    }
+    window.onload = fetchList;
 </script>
 
 </body>
