@@ -9,7 +9,7 @@ const PORT = 3000;
 const dbConfig = {
     host: 'localhost',
     user: 'root',
-    password: 'fdsfl;wkpKFf4052v', // <-- Set your MySQL password if needed
+    password: 'password', // <-- Set your MySQL password if needed
     database: 'todolist',
 };
 
