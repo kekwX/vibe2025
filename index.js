@@ -9,79 +9,115 @@ const PORT = 3000;
 const dbConfig = {
     host: 'localhost',
     user: 'root',
-    password: '',
+    password: 'fdsfl;wkpKFf4052v', // <-- Set your MySQL password if needed
     database: 'todolist',
-  };
+};
 
-
-  async function retrieveListItems() {
-    try {
-      // Create a connection to the database
-      const connection = await mysql.createConnection(dbConfig);
-      
-      // Query to select all items from the database
-      const query = 'SELECT id, text FROM items';
-      
-      // Execute the query
-      const [rows] = await connection.execute(query);
-      
-      // Close the connection
-      await connection.end();
-      
-      // Return the retrieved items as a JSON array
-      return rows;
-    } catch (error) {
-      console.error('Error retrieving list items:', error);
-      throw error; // Re-throw the error
-    }
-  }
-
-// Stub function for generating HTML rows
-async function getHtmlRows() {
-    // Example data - replace with actual DB data later
-    /*
-    const todoItems = [
-        { id: 1, text: 'First todo item' },
-        { id: 2, text: 'Second todo item' }
-    ];*/
-
-    const todoItems = await retrieveListItems();
-
-    // Generate HTML for each item
-    return todoItems.map(item => `
-        <tr>
-            <td>${item.id}</td>
-            <td>${item.text}</td>
-            <td><button class="delete-btn">×</button></td>
-        </tr>
-    `).join('');
+async function retrieveListItems() {
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT id, text FROM items');
+    await connection.end();
+    return rows;
 }
 
-// Modified request handler with template replacement
+async function apiGetItems(req, res) {
+    try {
+        const items = await retrieveListItems();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(items));
+    } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to fetch items' }));
+    }
+}
+
+async function apiAddItem(req, res) {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+        try {
+            const { text } = JSON.parse(body);
+            if (!text || !text.trim()) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Text is required' }));
+                return;
+            }
+            const connection = await mysql.createConnection(dbConfig);
+            await connection.execute('INSERT INTO items (text) VALUES (?)', [text.trim()]);
+            await connection.end();
+            res.writeHead(201, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Failed to add item' }));
+        }
+    });
+}
+
+async function apiUpdateItem(req, res) {
+    const id = req.url.split('/').pop();
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+        try {
+            const { text } = JSON.parse(body);
+            if (!text || !text.trim()) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Text is required' }));
+                return;
+            }
+            const connection = await mysql.createConnection(dbConfig);
+            await connection.execute('UPDATE items SET text = ? WHERE id = ?', [text.trim(), id]);
+            await connection.end();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Failed to update item' }));
+        }
+    });
+}
+
+async function apiDeleteItem(req, res) {
+    const id = req.url.split('/').pop();
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        await connection.execute('DELETE FROM items WHERE id = ?', [id]);
+        await connection.end();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+    } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to delete item' }));
+    }
+}
+
 async function handleRequest(req, res) {
-    if (req.url === '/') {
+    if (req.url === '/' && req.method === 'GET') {
         try {
             const html = await fs.promises.readFile(
-                path.join(__dirname, 'index.html'), 
+                path.join(__dirname, 'index.html'),
                 'utf8'
             );
-            
-            // Replace template placeholder with actual content
-            const processedHtml = html.replace('{{rows}}', await getHtmlRows());
-            
             res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(processedHtml);
+            res.end(html);
         } catch (err) {
-            console.error(err);
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('Error loading index.html');
         }
+    } else if (req.url === '/api/items' && req.method === 'GET') {
+        await apiGetItems(req, res);
+    } else if (req.url === '/api/items' && req.method === 'POST') {
+        await apiAddItem(req, res);
+    } else if (req.url.startsWith('/api/items/') && req.method === 'PUT') {
+        await apiUpdateItem(req, res);
+    } else if (req.url.startsWith('/api/items/') && req.method === 'DELETE') {
+        await apiDeleteItem(req, res);
     } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Route not found');
     }
 }
 
-// Create and start server
 const server = http.createServer(handleRequest);
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
