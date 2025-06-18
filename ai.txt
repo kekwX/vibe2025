@@ -1,4 +1,1 @@
-hi again. now i need to integrate my todolist with telegram. 
-I need the telegram to have the same functionality as the todolist web app. 
-I don't need logging using telegram. In telegram itself, I should refer to the same db as in the web. 
-And so that I could log in to telegram using username and password, like in the web.
+I want to deploy my code server. What should I do?

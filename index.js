@@ -1,3 +1,5 @@
+require('dotenv').config(); // Loading variables from .env
+
 const express = require('express');
 const session = require('express-session');
 const mysql = require('mysql2/promise');
@@ -8,20 +10,21 @@ const TelegramBot = require('node-telegram-bot-api');
 const app = express();
 const PORT = 3000;
 
-const TELEGRAM_TOKEN = 'TELEGRAM_TOKEN'; // <-- replace with your token
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN; 
 
 const dbConfig = {
-  host: 'localhost',
-  user: 'root',
-  password: 'password', // password MySQL
-  database: 'todolist',
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 };
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  secret: 'your_secret_key_here',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 1000 * 60 * 60 * 24 }
