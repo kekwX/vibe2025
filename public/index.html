@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ToDoList with Authentication</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; }
+    .hidden { display: none; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; }
+    th { background-color: #eee; }
+    input[type="text"], input[type="password"] { padding: 8px; width: 100%; box-sizing: border-box; }
+    button { padding: 8px 12px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<h1>ToDoList with Authentication</h1>
+
+<div id="auth-forms">
+  <h2>Register</h2>
+  <input type="text" id="registerUsername" placeholder="Username" /><br />
+  <input type="password" id="registerPassword" placeholder="Password" /><br />
+  <button onclick="register()">Register</button>
+
+  <h2>Login</h2>
+  <input type="text" id="loginUsername" placeholder="Username" /><br />
+  <input type="password" id="loginPassword" placeholder="Password" /><br />
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="todo-app" class="hidden">
+  <p>Logged in as <span id="userDisplay"></span> <button onclick="logout()">Logout</button></p>
+
+  <input type="text" id="newItemText" placeholder="New ToDo item" />
+  <button onclick="addItem()">Add</button>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Text</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="todoList"></tbody>
+  </table>
+</div>
+
+<script>
+  let editingId = null;
+
+  function showMessage(msg) {
+    alert(msg);
+  }
+
+  async function register() {
+    const username = document.getElementById('registerUsername').value.trim();
+    const password = document.getElementById('registerPassword').value.trim();
+    if (!username || !password) {
+      showMessage('Please enter username and password');
+      return;
+    }
+    try {
+      const res = await fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (res.ok) {
+        showMessage('Registered successfully. Please login.');
+      } else {
+        const data = await res.json();
+        showMessage(data.error || 'Registration failed');
+      }
+    } catch {
+      showMessage('Network error');
+    }
+  }
+
+  async function login() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    if (!username || !password) {
+      showMessage('Please enter username and password');
+      return;
+    }
+    try {
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (res.ok) {
+        document.getElementById('auth-forms').classList.add('hidden');
+        document.getElementById('todo-app').classList.remove('hidden');
+        document.getElementById('userDisplay').textContent = username;
+        loadItems();
+      } else {
+        const data = await res.json();
+        showMessage(data.error || 'Login failed');
+      }
+    } catch {
+      showMessage('Network error');
+    }
+  }
+
+  async function logout() {
+    await fetch('/logout', { method: 'POST' });
+    document.getElementById('auth-forms').classList.remove('hidden');
+    document.getElementById('todo-app').classList.add('hidden');
+  }
+
+  async function loadItems() {
+    try {
+      const res = await fetch('/api/items');
+      if (res.ok) {
+        const items = await res.json();
+        renderList(items);
+      } else if (res.status === 401) {
+        logout();
+      } else {
+        showMessage('Failed to load items');
+      }
+    } catch {
+      showMessage('Network error');
+    }
+  }
+
+  function renderList(items) {
+    const tbody = document.getElementById('todoList');
+    tbody.innerHTML = '';
+    items.forEach((item, index) => {
+      const isEditing = editingId === item.id;
+      const tr = document.createElement('tr');
+      if (isEditing) {
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td><input type="text" id="editInput" value="${item.text}" /></td>
+          <td>
+            <button onclick="saveEdit(${item.id})">Save</button>
+            <button onclick="cancelEdit()">Cancel</button>
+          </td>
+        `;
+      } else {
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${item.text}</td>
+          <td>
+            <button onclick="editItem(${item.id})">Edit</button>
+            <button onclick="deleteItem(${item.id})">Delete</button>
+          </td>
+        `;
+      }
+      tbody.appendChild(tr);
+    });
+  }
+
+  function editItem(id) {
+    editingId = id;
+    loadItems();
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    loadItems();
+  }
+
+  async function saveEdit(id) {
+    const newText = document.getElementById('editInput').value.trim();
+    if (!newText) {
+      showMessage('Text cannot be empty');
+      return;
+    }
+    try {
+      const res = await fetch('/api/items/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: newText })
+      });
+      if (res.ok) {
+        editingId = null;
+        loadItems();
+      } else {
+        showMessage('Failed to update item');
+      }
+    } catch {
+      showMessage('Network error');
+    }
+  }
+
+  async function addItem() {
+    const textInput = document.getElementById('newItemText');
+    const text = textInput.value.trim();
+    if (!text) {
+      showMessage('Enter a task');
+      return;
+    }
+    try {
+      const res = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (res.ok) {
+        textInput.value = '';
+        loadItems();
+      } else {
+        showMessage('Failed to add item');
+      }
+    } catch {
+      showMessage('Network error');
+    }
+  }
+
+  async function deleteItem(id) {
+    if (!confirm('Delete this item?')) return;
+    try {
+      const res = await fetch('/api/items/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        loadItems();
+      } else {
+        showMessage('Failed to delete item');
+      }
+    } catch {
+      showMessage('Network error');
+    }
+  }
+</script>
+
+</body>
+</html>
