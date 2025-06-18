@@ -2,6 +2,7 @@ require('dotenv').config(); // Loading variables from .env
 
 const express = require('express');
 const session = require('express-session');
+const MemoryStore = require('memorystore')(session);
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const path = require('path');
@@ -24,10 +25,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  cookie: { maxAge: 86400000 }, // 1 day
+  store: new MemoryStore({
+    checkPeriod: 86400000 // clean up stale sessions every 24 hours
+  }),
+  secret: process.env.SESSION_SECRET, 
   resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 }
+  saveUninitialized: false
 }));
 
 app.use(express.static(path.join(__dirname, 'public')));
