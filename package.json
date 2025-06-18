@@ -1,7 +1,6 @@
 {
-  "name": "todolist-auth",
+  "name": "todolist-telegram-integration",
   "version": "1.0.0",
-  "description": "ToDoList with authentication",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -10,6 +9,7 @@
     "bcrypt": "^5.1.0",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
-    "mysql2": "^3.14.0"
+    "mysql2": "^3.14.0",
+    "node-telegram-bot-api": "^0.61.0"
   }
 }
