@@ -1,4 +1,4 @@
-require('dotenv').config(); // Loading variables from .env
+require('dotenv').config();
 
 const express = require('express');
 const session = require('express-session');
@@ -10,26 +10,23 @@ const TelegramBot = require('node-telegram-bot-api');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN; 
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 
 const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  port: process.env.DB_PORT
 };
-
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  cookie: { maxAge: 86400000 }, // 1 day
-  store: new MemoryStore({
-    checkPeriod: 86400000 // clean up stale sessions every 24 hours
-  }),
-  secret: process.env.SESSION_SECRET, 
+  cookie: { maxAge: 86400000 },
+  store: new MemoryStore({ checkPeriod: 86400000 }),
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false
 }));
@@ -41,7 +38,7 @@ function isAuthenticated(req, res, next) {
   res.status(401).json({ error: 'Unauthorized' });
 }
 
-// Web: registration
+// Регистрация
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
@@ -61,7 +58,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Web: Login
+// Логин
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
@@ -85,14 +82,14 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Web: logout
+// Logout
 app.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.json({ message: 'Logged out' });
   });
 });
 
-// Web: Get tasks
+// Получить задачи
 app.get('/api/items', isAuthenticated, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
@@ -104,7 +101,7 @@ app.get('/api/items', isAuthenticated, async (req, res) => {
   }
 });
 
-// Web: add task
+// Добавить задачу
 app.post('/api/items', isAuthenticated, async (req, res) => {
   const { text } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'Text is required' });
@@ -119,7 +116,7 @@ app.post('/api/items', isAuthenticated, async (req, res) => {
   }
 });
 
-// Web: edit task
+// Редактировать задачу
 app.put('/api/items/:id', isAuthenticated, async (req, res) => {
   const { id } = req.params;
   const { text } = req.body;
@@ -141,7 +138,7 @@ app.put('/api/items/:id', isAuthenticated, async (req, res) => {
   }
 });
 
-// Web: Delete Task
+// Удалить задачу
 app.delete('/api/items/:id', isAuthenticated, async (req, res) => {
   const { id } = req.params;
 
@@ -161,7 +158,7 @@ app.delete('/api/items/:id', isAuthenticated, async (req, res) => {
   }
 });
 
-// Home page
+// Главная страница
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -170,7 +167,6 @@ app.get('/', (req, res) => {
 
 const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 
-// Sessions Telegram: chatId -> userId
 const telegramSessions = new Map();
 
 async function query(sql, params) {
@@ -256,7 +252,6 @@ bot.onText(/\/list/, async (msg) => {
   }
 });
 
-
 bot.onText(/\/add (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const userId = telegramSessions.get(chatId);
@@ -279,13 +274,12 @@ bot.onText(/\/edit (\d+) (.+)/, async (msg, match) => {
   if (!userId) {
     return bot.sendMessage(chatId, 'Пожалуйста, войдите через /login');
   }
-  const listNumber = parseInt(match[1], 10); // This is a serial number in the list.
+  const listNumber = parseInt(match[1], 10);
   const newText = match[2].trim();
   if (isNaN(listNumber) || !newText) {
     return bot.sendMessage(chatId, 'Используйте: /edit <номер_в_списке> <новый текст>');
   }
   try {
-    // We get all user tasks, sorted by id (or as you wish)
     const items = await query('SELECT id, text FROM items WHERE user_id = ? ORDER BY id', [userId]);
     if (listNumber < 1 || listNumber > items.length) {
       return bot.sendMessage(chatId, 'Нет задачи с таким номером в вашем списке');
@@ -330,7 +324,6 @@ bot.onText(/\/delete (\d+)/, async (msg, match) => {
     bot.sendMessage(chatId, 'Ошибка сервера');
   }
 });
-
 
 bot.on('message', (msg) => {
   if (!msg.text.startsWith('/')) {
