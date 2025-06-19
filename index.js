@@ -9,7 +9,7 @@ const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN; 
 
